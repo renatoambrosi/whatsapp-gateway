@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gateway Monitor — Expedição WhatsApp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { font-family: 'Inter', sans-serif; background: #f5f4f0; color: #2d2a1e; min-height: 100vh; }
+
+header {
+  background: #9b8732; color: white;
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.logo { font-size: 1rem; font-weight: 700; }
+.logo span { opacity: .7; font-weight: 400; font-size: .85rem; margin-left: 8px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+#lastUpdate { font-size: .72rem; opacity: .75; }
+
+.content { padding: 24px; max-width: 960px; margin: 0 auto; }
+
+/* STATS */
+.stats { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+.stat {
+  background: white; border: 1px solid #e0d9bc;
+  border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 120px;
+}
+.stat .num { font-size: 1.8rem; font-weight: 800; color: #9b8732; line-height: 1; }
+.stat .lbl { font-size: .72rem; color: #7a7464; margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+.stat.red .num { color: #c62828; }
+.stat.green .num { color: #2e7d32; }
+.stat.blue .num { color: #1565c0; }
+
+/* CARD */
+.card {
+  background: white; border: 1px solid #e0d9bc;
+  border-radius: 12px; overflow: hidden; margin-bottom: 20px;
+}
+.card-header {
+  padding: 13px 20px; background: #fdf8e8;
+  border-bottom: 1px solid #e0d9bc;
+  font-weight: 700; font-size: .88rem; color: #504b3a;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.card-header .right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* STATUS BAR */
+.status-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px; border-bottom: 1px solid #e0d9bc;
+  font-size: .8rem; color: #7a7464;
+}
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #ccc; transition: background 300ms; flex-shrink: 0;
+}
+.dot.ok     { background: #2e7d32; }
+.dot.warn   { background: #f57f17; animation: pulse 1s infinite; }
+.dot.paused { background: #1565c0; }
+.dot.err    { background: #c62828; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.aguardando-bar {
+  padding: 8px 20px; background: #fff8e1; border-bottom: 1px solid #e0d9bc;
+  font-size: .78rem; color: #f57f17; display: none; align-items: center; gap: 6px;
+}
+
+/* CONTROLES */
+.controles {
+  padding: 16px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  border-bottom: 1px solid #e0d9bc;
+}
+.btn-play {
+  background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;
+  padding: 8px 18px; border-radius: 8px; font-family: 'Inter', sans-serif;
+  font-size: .82rem; font-weight: 700; cursor: pointer; transition: opacity 120ms;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-pause {
+  background: #fff8e1; color: #f57f17; border: 1px solid #ffe082;
+  padding: 8px 18px; border-radius: 8px; font-family: 'Inter', sans-serif;
+  font-size: .82rem; font-weight: 700; cursor: pointer; transition: opacity 120ms;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-play:hover, .btn-pause:hover { opacity: .8; }
+
+.cooldown-form { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.cooldown-form label { font-size: .78rem; color: #7a7464; font-weight: 600; white-space: nowrap; }
+.cooldown-form input {
+  width: 70px; height: 34px; padding: 0 10px;
+  border: 1px solid #bcac5a; border-radius: 8px;
+  font-family: 'Inter', sans-serif; font-size: .88rem;
+  text-align: center; color: #2d2a1e; background: white;
+  outline: none;
+}
+.cooldown-form input:focus { border-color: #9b8732; }
+.btn-salvar {
+  background: #9b8732; color: white; border: none;
+  padding: 8px 16px; border-radius: 8px;
+  font-family: 'Inter', sans-serif; font-size: .78rem; font-weight: 700;
+  cursor: pointer; transition: opacity 120ms;
+}
+.btn-salvar:hover { opacity: .85; }
+
+/* FILA */
+.fila-vazia { text-align: center; padding: 40px; color: #9a9480; font-size: .88rem; }
+.fila-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 20px; border-bottom: 1px solid #f0ece0; transition: background 150ms;
+}
+.fila-item:last-child { border-bottom: none; }
+.fila-item:hover { background: #fafaf7; }
+.fila-pos {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #f5f0e0; border: 1px solid #e0d9bc;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; font-weight: 700; color: #7a7464; flex-shrink: 0;
+}
+.fila-pos.imediato { background: #fff8e1; border-color: #f57f17; color: #f57f17; }
+.fila-info { flex: 1; min-width: 0; }
+.fila-nome { font-size: .84rem; font-weight: 600; }
+.fila-preview { font-size: .72rem; color: #9a9480; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.fila-meta { display: flex; gap: 8px; align-items: center; flex-shrink: 0; font-size: .72rem; color: #9a9480; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700; }
+.badge-gray   { background: #f0f0f0; color: #666; }
+.badge-gold   { background: #fff8e1; color: #9b8732; }
+.badge-green  { background: #e8f5e9; color: #2e7d32; }
+.badge-red    { background: #ffebee; color: #c62828; }
+.badge-blue   { background: #e3f2fd; color: #1565c0; }
+
+.btn-del {
+  background: #ffebee; color: #c62828; border: 1px solid #ef9a9a;
+  padding: 4px 8px; border-radius: 6px; font-size: .72rem; font-weight: 700;
+  cursor: pointer; transition: opacity 120ms; white-space: nowrap;
+}
+.btn-del:hover { opacity: .8; }
+
+.btn-reenviar {
+  background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;
+  padding: 4px 8px; border-radius: 6px; font-size: .72rem; font-weight: 700;
+  cursor: pointer; transition: opacity 120ms; white-space: nowrap;
+}
+.btn-reenviar:hover { opacity: .8; }
+  color: #bcac5a; font-size: 1rem; cursor: grab; padding: 0 4px;
+  flex-shrink: 0; user-select: none; touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.fila-item.dragging { opacity: .4; background: #fdf8e8; }
+.fila-item.drag-over { border-top: 2px solid #9b8732; }
+
+/* HISTÓRICO */
+.hist-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; border-bottom: 1px solid #f0ece0; font-size: .8rem;
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-ok  { color: #2e7d32; font-weight: 700; font-size: .7rem; }
+.hist-err { color: #c62828; font-weight: 700; font-size: .7rem; }
+.hist-info { flex: 1; min-width: 0; }
+.hist-nome { font-weight: 600; }
+.hist-preview { color: #9a9480; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .72rem; }
+.hist-ts { font-size: .68rem; color: #9a9480; flex-shrink: 0; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #2e7d32; color: white; padding: 12px 20px;
+  border-radius: 8px; font-weight: 600; font-size: .85rem;
+  opacity: 0; transition: opacity 250ms; z-index: 200; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.toast.err  { background: #c62828; }
+
+@media (max-width: 600px) {
+  .controles { flex-direction: column; align-items: stretch; }
+  .cooldown-form { margin-left: 0; }
+  .stats .stat { min-width: calc(50% - 7px); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚚 Gateway <span>Expedição WhatsApp</span></div>
+  <div class="header-right">
+    <span id="lastUpdate">—</span>
+  </div>
+</header>
+
+<div class="content">
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="num" id="sFilaTotal">—</div><div class="lbl">Na fila</div></div>
+    <div class="stat green"><div class="num" id="sHistTotal">—</div><div class="lbl">Enviadas</div></div>
+    <div class="stat red"><div class="num" id="sErros">—</div><div class="lbl">Erros</div></div>
+    <div class="stat blue"><div class="num" id="sCooldown">—</div><div class="lbl">Intervalo (s)</div></div>
+  </div>
+
+  <!-- CONTROLES -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">Controles</div>
+    <div class="controles">
+      <button class="btn-play" id="btnPlay"  onclick="retomar()">▶ Retomar</button>
+      <button class="btn-pause" id="btnPause" onclick="pausar()">⏸ Pausar</button>
+      <div id="statusPausa" style="font-size:.8rem;color:#7a7464"></div>
+      <div class="cooldown-form">
+        <label>Intervalo entre envios</label>
+        <input type="number" id="inputCooldown" min="10" max="600" placeholder="60"/>
+        <span style="font-size:.78rem;color:#7a7464">s</span>
+        <button class="btn-salvar" onclick="salvarCooldown()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILA -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      Na fila
+      <div class="right">
+        <div class="dot" id="dot"></div>
+        <span id="statusTxt" style="font-size:.78rem;color:#7a7464">Carregando...</span>
+      </div>
+    </div>
+    <div class="aguardando-bar" id="aguardandoBar">
+      ⏳ <span id="aguardandoTxt"></span>
+    </div>
+    <div id="filaLista"><div class="fila-vazia">Carregando...</div></div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="card">
+    <div class="card-header">Últimas enviadas <span style="font-weight:400;font-size:.75rem;color:#7a7464">(últimas 50)</span></div>
+    <div id="historicoLista"><div class="fila-vazia">Nenhuma ainda</div></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let interval = null;
+
+function toast(msg, err = false) {
+  const t = document.getElementById('toast');
+  t.textContent = (err ? '✕ ' : '✓ ') + msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+function fmt(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function esc(s) { return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function carregar() {
+  try {
+    const r = await fetch('/monitor/estado');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    renderEstado(d);
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch (e) {
+    document.getElementById('dot').className = 'dot err';
+    document.getElementById('statusTxt').textContent = 'Erro ao conectar';
+  }
+}
+
+function renderEstado(d) {
+  const dot = document.getElementById('dot');
+  const statusTxt = document.getElementById('statusTxt');
+  const aguardandoBar = document.getElementById('aguardandoBar');
+
+  // stats
+  const fila = d.fila || [];
+  const hist = d.historico || [];
+  document.getElementById('sFilaTotal').textContent = fila.length;
+  document.getElementById('sHistTotal').textContent = hist.filter(h => h.sucesso).length;
+  document.getElementById('sErros').textContent = hist.filter(h => !h.sucesso).length;
+  document.getElementById('sCooldown').textContent = Math.round((d.cooldownMs || 60000) / 1000);
+  document.getElementById('inputCooldown').placeholder = Math.round((d.cooldownMs || 60000) / 1000);
+
+  // status
+  if (d.pausado) {
+    dot.className = 'dot paused';
+    statusTxt.textContent = 'Fila pausada';
+    document.getElementById('statusPausa').textContent = '⏸ Pausado — clique em Retomar para continuar';
+    document.getElementById('btnPlay').style.fontWeight = '800';
+    document.getElementById('btnPause').style.opacity = '.4';
+    aguardandoBar.style.display = 'none';
+  } else if (d.processando) {
+    dot.className = 'dot warn';
+    statusTxt.textContent = 'Enviando...';
+    document.getElementById('statusPausa').textContent = '';
+    document.getElementById('btnPlay').style.opacity = '.4';
+    document.getElementById('btnPause').style.fontWeight = '800';
+    aguardandoBar.style.display = 'flex';
+    document.getElementById('aguardandoTxt').textContent = 'Processando envio...';
+  } else if (fila.length > 0) {
+    dot.className = 'dot warn';
+    statusTxt.textContent = `${fila.length} na fila — aguardando intervalo`;
+    document.getElementById('statusPausa').textContent = '';
+    aguardandoBar.style.display = 'flex';
+    document.getElementById('aguardandoTxt').textContent = `Próximo: ${fila[0].nome}`;
+  } else {
+    dot.className = 'dot ok';
+    statusTxt.textContent = 'Fila vazia — aguardando mensagens';
+    document.getElementById('statusPausa').textContent = '';
+    document.getElementById('btnPlay').style.opacity = '';
+    document.getElementById('btnPause').style.opacity = '';
+    document.getElementById('btnPlay').style.fontWeight = '';
+    document.getElementById('btnPause').style.fontWeight = '';
+    aguardandoBar.style.display = 'none';
+  }
+
+  renderFila(fila);
+  renderHistorico(hist);
+}
+
+function renderFila(fila) {
+  const el = document.getElementById('filaLista');
+  if (!fila.length) { el.innerHTML = '<div class="fila-vazia">Fila vazia ✓</div>'; return; }
+
+  el.innerHTML = fila.map((item, i) => `
+    <div class="fila-item" data-id="${item.id}" draggable="true">
+      <div class="drag-handle" title="Arrastar para reordenar">⠿</div>
+      <div class="fila-pos ${item.imediato ? 'imediato' : ''}">${item.imediato ? '⚡' : i+1}</div>
+      <div class="fila-info">
+        <div class="fila-nome">${esc(item.nome)} <span class="badge badge-gray">${esc(item.origem)}</span></div>
+        <div class="fila-preview">${esc(item.preview)}...</div>
+      </div>
+      <div class="fila-meta">
+        ${fmt(item.entrou_em)}
+        <button class="btn-del" onclick="cancelar(${item.id},'${esc(item.nome).replace(/'/g,"\\'")}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  iniciarDrag(el);
+}
+
+function iniciarDrag(container) {
+  let draggingEl = null;
+  let touchStartY = 0;
+  let touchEl = null;
+
+  // ── MOUSE / DESKTOP ──
+  container.querySelectorAll('.fila-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      draggingEl = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      container.querySelectorAll('.fila-item').forEach(i => i.classList.remove('drag-over'));
+      salvarOrdem(container);
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (item === draggingEl) return;
+      container.querySelectorAll('.fila-item').forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+      const rect = item.getBoundingClientRect();
+      const meio = rect.top + rect.height / 2;
+      if (e.clientY < meio) container.insertBefore(draggingEl, item);
+      else container.insertBefore(draggingEl, item.nextSibling);
+    });
+  });
+
+  // ── TOUCH / MOBILE ──
+  container.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      touchEl = handle.closest('.fila-item');
+      touchStartY = e.touches[0].clientY;
+      touchEl.classList.add('dragging');
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!touchEl) return;
+      const touch = e.touches[0];
+      const els = [...container.querySelectorAll('.fila-item:not(.dragging)')];
+      container.querySelectorAll('.fila-item').forEach(i => i.classList.remove('drag-over'));
+      for (const el of els) {
+        const rect = el.getBoundingClientRect();
+        if (touch.clientY < rect.bottom) {
+          el.classList.add('drag-over');
+          const meio = rect.top + rect.height / 2;
+          if (touch.clientY < meio) container.insertBefore(touchEl, el);
+          else container.insertBefore(touchEl, el.nextSibling);
+          break;
+        }
+      }
+    }, { passive: false });
+
+    handle.addEventListener('touchend', () => {
+      if (!touchEl) return;
+      touchEl.classList.remove('dragging');
+      container.querySelectorAll('.fila-item').forEach(i => i.classList.remove('drag-over'));
+      salvarOrdem(container);
+      touchEl = null;
+    });
+  });
+}
+
+async function salvarOrdem(container) {
+  const ids = [...container.querySelectorAll('.fila-item')].map(el => parseInt(el.dataset.id));
+  try {
+    await fetch('/monitor/reordenar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    // Atualiza numeração visual sem recarregar tudo
+    container.querySelectorAll('.fila-item').forEach((el, i) => {
+      const pos = el.querySelector('.fila-pos');
+      if (pos && !pos.classList.contains('imediato')) pos.textContent = i + 1;
+    });
+  } catch (e) {
+    toast('Erro ao salvar ordem', true);
+  }
+}
+
+function renderHistorico(hist) {
+  const el = document.getElementById('historicoLista');
+  if (!hist.length) { el.innerHTML = '<div class="fila-vazia">Nenhuma enviada ainda</div>'; return; }
+  el.innerHTML = hist.map(item => `
+    <div class="hist-item">
+      <span class="${item.sucesso ? 'hist-ok' : 'hist-err'}">${item.sucesso ? '✓' : '✕'}</span>
+      <div class="hist-info">
+        <div class="hist-nome">${esc(item.nome)} <span class="badge badge-gray">${esc(item.origem)}</span>${!item.sucesso ? ` <span class="badge badge-red">${esc(item.erro||'erro')}</span>` : ''}</div>
+        <div class="hist-preview">${esc(item.preview)}...</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${!item.sucesso ? `<button class="btn-reenviar" onclick="reenviar(${item.id},'${esc(item.nome).replace(/'/g,"\\'")}')">↩ Reenviar</button>` : ''}
+        <span class="hist-ts">${fmt(item.enviado_em)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function pausar() {
+  const r = await fetch('/monitor/pausar', { method: 'POST' });
+  const d = await r.json();
+  if (d.success) { toast('Fila pausada'); carregar(); }
+  else toast(d.error || 'Erro', true);
+}
+
+async function retomar() {
+  const r = await fetch('/monitor/retomar', { method: 'POST' });
+  const d = await r.json();
+  if (d.success) { toast('Fila retomada'); carregar(); }
+  else toast(d.error || 'Erro', true);
+}
+
+async function salvarCooldown() {
+  const seg = parseInt(document.getElementById('inputCooldown').value);
+  if (!seg) { toast('Digite um valor válido', true); return; }
+  const r = await fetch('/monitor/cooldown', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ segundos: seg })
+  });
+  const d = await r.json();
+  if (d.success) { toast(`Intervalo alterado para ${seg}s`); carregar(); }
+  else toast(d.error || 'Erro', true);
+}
+
+async function cancelar(id, nome) {
+  if (!confirm(`Cancelar mensagem para ${nome}?`)) return;
+  const r = await fetch(`/monitor/fila/${id}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.success) { toast(`Cancelado: ${nome}`); carregar(); }
+  else toast(d.error || 'Erro', true);
+}
+
+async function reenviar(id, nome) {
+  if (!confirm(`Reenviar mensagem para ${nome}? Ela voltará para o fim da fila.`)) return;
+  const r = await fetch(`/monitor/reenviar/${id}`, { method: 'POST' });
+  const d = await r.json();
+  if (d.success) { toast(`${nome} adicionado à fila`); carregar(); }
+  else toast(d.error || 'Erro', true);
+}
+
+carregar();
+interval = setInterval(carregar, 3000);
+</script>
+</body>
+</html>
